@@ -10,21 +10,11 @@ using namespace std;
 namespace Lex {
 	int cur = 0;
 	const string srcCode =
-            "func int ff(int ab)"
-            "{"
-            "if(ab==1)"
-            "{return 1;}"
-            "return ab*ff(ab-1);"
-            "}"
             "func int  main(int a)"
             "{"
             "int abc;"
-            "if(abc==3)"
-            "{1;}"
-            "else if(abc==0)"
-            "{123;}"
-            "else"
-            "{7;}"
+            "if(abc==0)"
+            "{print(\"%d\",1);}"
             "}";
 	enum TokenSign {
 		Add,
@@ -792,11 +782,11 @@ namespace Gram {
                 Lex::Match(Lex::RightMid);
 			}
 
-
+            virtualMachine.AtText(ifFalsePos,virtualMachine.GetTextSize());
 			//else
 			if (Lex::GetToken().first == Lex::Else) {
-			    if(elseIfFalse.empty()) {
-                    virtualMachine.AtText(ifFalsePos, virtualMachine.GetTextSize());
+			    if(!elseIfFalse.empty()) {
+                    virtualMachine.AtText(elseIfFalse.top(), virtualMachine.GetTextSize());
                 }
 				Lex::Match(Lex::Else);
 				Lex::Match(Lex::LeftMid);
@@ -805,8 +795,8 @@ namespace Gram {
 				virtualMachine.AtText(ifTrueEndPos, virtualMachine.GetTextSize());
 			}
 			else {
-                if(elseIfFalse.empty()) {
-                    virtualMachine.AtText(ifFalsePos, virtualMachine.GetTextSize());
+                if(!elseIfFalse.empty()) {
+                    virtualMachine.AtText(elseIfFalse.top(), virtualMachine.GetTextSize());
                 }
 				virtualMachine.AtText(ifTrueEndPos, virtualMachine.GetTextSize());
 			}
