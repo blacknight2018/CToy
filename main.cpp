@@ -13,8 +13,9 @@ namespace Lex {
             "func int  main(int a)"
             "{"
             "int abc;"
-            "if(abc==0)"
-            "{print(\"%d\",1);}"
+            "abc=123;"
+            "if(abc==123)"
+            "{print(\"%d\",*&abc);}"
             "}";
 	enum TokenSign {
 		Add,
@@ -643,6 +644,18 @@ namespace Gram {
 			char* ptr = AllocStr(s.substr(1, s.size() - 2));
 			virtualMachine.LoadIntInAx((int)ptr);
 			Lex::SkipToken(curToken.second);
+		}else if(curToken.first == Lex::And){
+            Lex::SkipToken(curToken.second);
+            Expression(GetPriority("*2"));
+		    if(virtualMachine.IsCurRightValue()){
+		        virtualMachine.PopTopOp();
+		    }
+		}else if(curToken.first == Lex::Mul){
+            Lex::SkipToken(curToken.second);
+            Expression(GetPriority("*2"));
+            if(!virtualMachine.IsCurRightValue()){
+                virtualMachine.Append(VirtualMachine::Li);
+            }
 		}
 		else if (curToken.first == Lex::ID) {
 			string name = curToken.second;
