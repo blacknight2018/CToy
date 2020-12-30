@@ -13,9 +13,11 @@ namespace Lex {
             "func int  main(int a)"
             "{"
             "int abc;"
-            "abc=123;"
-            "if(abc==123)"
-            "{print(\"%d\",*&abc);}"
+            "abc=56;"
+            "if(abc==12)"
+            "{print(\"%d\",12);}"
+            "else if(abc==55+1)"
+            "{print(\"%d\",56);}"
             "}";
 	enum TokenSign {
 		Add,
@@ -768,7 +770,7 @@ namespace Gram {
 			virtualMachine.Append(0);
 			Lex::Match(Lex::RightMid);
 
-
+            virtualMachine.AtText(ifFalsePos,virtualMachine.GetTextSize());
 			stack<int> elseIfFalse;
 			stack<int> elseIfJmp;
 			while(Lex::GetToken().first == Lex::ElseIf){
@@ -795,7 +797,6 @@ namespace Gram {
                 Lex::Match(Lex::RightMid);
 			}
 
-            virtualMachine.AtText(ifFalsePos,virtualMachine.GetTextSize());
 			//else
 			if (Lex::GetToken().first == Lex::Else) {
 			    if(!elseIfFalse.empty()) {
