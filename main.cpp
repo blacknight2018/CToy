@@ -5,6 +5,8 @@
 #include <sstream>
 #include <stack>
 
+
+
 using namespace std;
 
 namespace Lex {
@@ -14,9 +16,9 @@ namespace Lex {
             "{"
             "int *abc;"
             "int cc;"
-            "abc = &cc;"
+            "abc = Alloc(4);"
             "*abc=123;"
-            "*abc;"
+            "Free(abc);"
             "}";
 	enum TokenSign {
 		Add,
@@ -48,7 +50,9 @@ namespace Lex {
 		Print,
 		Ret,
 		Func,
-		Str
+		Str,
+		Alloc,
+		Free,
 	};
 
 	pair<int, string> GetToken() {
@@ -99,6 +103,12 @@ namespace Lex {
 				k++;
 			}
 			string tokenName = srcCode.substr(cur, k - cur);
+			if(tokenName == "Alloc"){
+			    return make_pair(TokenSign::Alloc,"Alloc");
+			}
+			if(tokenName == "Free"){
+			    return make_pair(TokenSign::Free,"Free");
+			}
 			if (tokenName == "if")
 				return make_pair(TokenSign::If, "if");
 			if (tokenName == "else") {
@@ -196,7 +206,7 @@ namespace Lex {
 class VirtualMachine {
 public:
 	enum Ins {
-		Ent, PushAx, Add, Sub, Mul, Div, Li, Si, Imm, Adj, Lev, Call, LoadParam, Exit, Push, Jz, Jmp, Print, Equ
+		Ent, PushAx, Add, Sub, Mul, Div, Li, Si, Imm, Adj, Lev, Call, LoadParam, Exit, Push, Jz, Jmp, Print, Equ,Alloc,Free
 	};
 private:
 	vector<int> text;
@@ -296,6 +306,11 @@ public:
 				cout << "Call " << text[i + 1] << endl;
 				i++;
 			}
+			else if(text[i] == Ins::Alloc){
+			    cout<<"Alloc"<<endl;
+			}else if(text[i] == Ins::Free){
+                cout<<"Free"<<endl;
+			}
 			else if (text[i] == Ins::LoadParam) {
 				cout << "LoadParam " << text[i + 1] << endl;
 				i++;
@@ -352,6 +367,11 @@ public:
 			}
 			else if (opCode == Ins::PushAx) {
 				this->PushVal(AX);
+			}
+			else if(opCode == Ins::Alloc){
+			    this->AX = (int )new char[AX];
+			}else if(opCode == Ins::Free){
+			    delete [](char*)this->AX;
 			}
 			else if (opCode == Ins::Li) {
 				this->AX = *((int*)AX);
@@ -672,6 +692,20 @@ namespace Gram {
 			Lex::SkipToken(curToken.second);
             resultType = VarType::Int;
 		}
+		else if(curToken.first == Lex::Alloc){
+            Lex::SkipToken(curToken.second);
+            Lex::Match(Lex::LeftParen);
+            Expression(GetPriority("="));
+            virtualMachine.Append(VirtualMachine::Ins::Alloc);
+            Lex::Match(Lex::RightParen);
+		}
+		else if(curToken.first == Lex::Free){
+            Lex::SkipToken(curToken.second);
+            Lex::Match(Lex::LeftParen);
+            Expression(GetPriority("="));
+            virtualMachine.Append(VirtualMachine::Ins::Free);
+            Lex::Match(Lex::RightParen);
+		}
 		else if (curToken.first == Lex::Str) {
 			string s = curToken.second;
 			char* ptr = AllocStr(s.substr(1, s.size() - 2));
@@ -921,7 +955,7 @@ namespace Gram {
 			virtualMachine.Append(0);
 			Statement();
 		}
-		else if ( Lex::GetToken().first==Lex::Mul|| Lex::GetToken().first == Lex::ID || Lex::GetToken().first == Lex::Num ||
+		else if ( Lex::GetToken().first == Lex::Free||Lex::GetToken().first == Lex::Alloc||  Lex::GetToken().first==Lex::Mul|| Lex::GetToken().first == Lex::ID || Lex::GetToken().first == Lex::Num ||
 			Lex::GetToken().first == Lex::Str) {
 			Expression(GetPriority("="));
 			Lex::Match(Lex::Semi);
