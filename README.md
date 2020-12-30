@@ -24,10 +24,15 @@
 
 > return ;
 
-### 输出
-> print(); 调用的是c语言的printf
+### 内置语句
 
-### Hello World
+> print(); 调用的是c语言的printf
+>
+> Alloc(Bytes); 分配内存,单位是字节
+>
+> Free(Ptr); 释放内存
+
+### Demo1:Hello World
 ```
 func int  main(int a)
 {
@@ -35,7 +40,7 @@ func int  main(int a)
 }
 ```
 
-### 求阶乘
+### Demo2:求阶乘
 ```
 func int ff(int n)
 {

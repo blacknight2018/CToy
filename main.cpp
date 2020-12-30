@@ -10,118 +10,106 @@
 using namespace std;
 
 namespace Lex {
-	int cur = 0;
-	const string srcCode =
-            "func int  main()"
-            "{"
-            "int cnt;"
-            "cnt = 0;"
-            "while(cnt!=123)"
-            "{ print(\"%d\",cnt);cnt = cnt+1;print(\"  \n \"); }"
-            "}";
-	enum TokenSign {
-		Add,
-		Sub,
-		Div,
-		Mul,
-		And,
-		LeftParen,
-		RightParen,
-		LeftBra,
-		RightBra,
-		FEof,
-		Comma,
-		Inc,
-		Dec,
-		Semi,
-		LeftMid,
-		RightMid,
-		Assign,
-		Num,
-		ID,
-		Int,
-		Equal,
-		NotEqual,
-		If,
-		Else,
-		ElseIf,
-		While,
-		Break,
-		Print,
-		Ret,
-		Func,
-		Str,
-		Alloc,
-		Free,
-	};
+    int cur = 0;
+    string srcCode;
+    enum TokenSign {
+        Add,
+        Sub,
+        Div,
+        Mul,
+        And,
+        LeftParen,
+        RightParen,
+        LeftBra,
+        RightBra,
+        FEof,
+        Comma,
+        Inc,
+        Dec,
+        Semi,
+        LeftMid,
+        RightMid,
+        Assign,
+        Num,
+        ID,
+        Int,
+        Equal,
+        NotEqual,
+        If,
+        Else,
+        ElseIf,
+        While,
+        Break,
+        Print,
+        Ret,
+        Func,
+        Str,
+        Alloc,
+        Free,
+    };
 
-	pair<int, string> GetToken() {
-		char ch = srcCode[cur];
-		int k = cur;
-		if (cur == srcCode.size())
-			return make_pair(TokenSign::FEof, "");
-		if (ch == ' ') {
-			while (cur < srcCode.size() && srcCode[cur] == ' ') {
-				cur++;
-			}
-			if (cur < srcCode.size()) {
-				ch = srcCode[cur];
-			}
-			else {
-				return make_pair(TokenSign::FEof, "");
-			}
-		}
-		k = cur;
-		if (ch >= '0' && ch <= '9') {
-			while (srcCode[k] >= '0' && srcCode[k] <= '9') {
-				k++;
-			}
-			return make_pair(TokenSign::Num, srcCode.substr(cur, k - cur));
-		}
-		else if (ch == '\"') {
-			string outStr;
-			for (int j = cur; srcCode[j]; j++) {
-				outStr += srcCode[j];
-				if (j != cur && srcCode[j] == '\"')
-					break;
-			}
-			return make_pair(TokenSign::Str, outStr);
-		}
-		else if (cur + 4 - 1 <= srcCode.size() - 1 && srcCode.substr(cur, 4) == "func") {
-			return make_pair(TokenSign::Func, "func");
-		}
-		else if (cur + 6 - 1 <= srcCode.size() - 1 && srcCode.substr(cur, 6) == "return") {
-			return make_pair(TokenSign::Ret, "return");
-		}
-		else if ((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z')) {
-			if (k + 3 <= srcCode.size()) {
-				if (srcCode.substr(k, 3) == "int")
-					return make_pair(TokenSign::Int, "int");
-			}
-			while ((srcCode[k] >= 'a' && srcCode[k] <= 'z') || (srcCode[k] >= 'A' && srcCode[k] <= 'Z') ||
-				(srcCode[k] >= '0' && srcCode[k] <= '9')) {
-				k++;
-			}
-			string tokenName = srcCode.substr(cur, k - cur);
-			if(tokenName == "Alloc"){
-			    return make_pair(TokenSign::Alloc,"Alloc");
-			}
-			if(tokenName == "Free"){
-			    return make_pair(TokenSign::Free,"Free");
-			}
-			if (tokenName == "if")
-				return make_pair(TokenSign::If, "if");
-			if (tokenName == "else") {
+    pair<int, string> GetToken() {
+        char ch = srcCode[cur];
+        int k = cur;
+        if (cur == srcCode.size())
+            return make_pair(TokenSign::FEof, "");
+        if (ch == ' ') {
+            while (cur < srcCode.size() && srcCode[cur] == ' ') {
+                cur++;
+            }
+            if (cur < srcCode.size()) {
+                ch = srcCode[cur];
+            } else {
+                return make_pair(TokenSign::FEof, "");
+            }
+        }
+        k = cur;
+        if (ch >= '0' && ch <= '9') {
+            while (srcCode[k] >= '0' && srcCode[k] <= '9') {
+                k++;
+            }
+            return make_pair(TokenSign::Num, srcCode.substr(cur, k - cur));
+        } else if (ch == '\"') {
+            string outStr;
+            for (int j = cur; srcCode[j]; j++) {
+                outStr += srcCode[j];
+                if (j != cur && srcCode[j] == '\"')
+                    break;
+            }
+            return make_pair(TokenSign::Str, outStr);
+        } else if (cur + 4 - 1 <= srcCode.size() - 1 && srcCode.substr(cur, 4) == "func") {
+            return make_pair(TokenSign::Func, "func");
+        } else if (cur + 6 - 1 <= srcCode.size() - 1 && srcCode.substr(cur, 6) == "return") {
+            return make_pair(TokenSign::Ret, "return");
+        } else if ((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z')) {
+            if (k + 3 <= srcCode.size()) {
+                if (srcCode.substr(k, 3) == "int")
+                    return make_pair(TokenSign::Int, "int");
+            }
+            while ((srcCode[k] >= 'a' && srcCode[k] <= 'z') || (srcCode[k] >= 'A' && srcCode[k] <= 'Z') ||
+                   (srcCode[k] >= '0' && srcCode[k] <= '9')) {
+                k++;
+            }
+            string tokenName = srcCode.substr(cur, k - cur);
+            if (tokenName == "Alloc") {
+                return make_pair(TokenSign::Alloc, "Alloc");
+            }
+            if (tokenName == "Free") {
+                return make_pair(TokenSign::Free, "Free");
+            }
+            if (tokenName == "if")
+                return make_pair(TokenSign::If, "if");
+            if (tokenName == "else") {
                 //else if
                 string tmp;
-                int tmpK=k++;
+                int tmpK = k++;
 
-                while ((srcCode[k] >= 'a' && srcCode[k] <= 'z')){
-                    tmp+=srcCode[k];
+                while ((srcCode[k] >= 'a' && srcCode[k] <= 'z')) {
+                    tmp += srcCode[k];
                     k++;
                 }
-                if(tmp == "if"){
-                    return make_pair(TokenSign::ElseIf,"else if");
+                if (tmp == "if") {
+                    return make_pair(TokenSign::ElseIf, "else if");
                 }
                 k = tmpK;
                 return make_pair(TokenSign::Else, "else");
@@ -199,9 +187,8 @@ namespace Lex {
 	void Match(TokenSign tokenSign) {
 		pair<int, string> c = GetToken();
 		if (tokenSign != c.first) {
-			cout << "Not Match " << c.second << endl;
-			exit(0);
-		}
+            throw exception((string("not match:") + c.second).data());
+        }
 		SkipToken(c.second);
 	}
 
@@ -212,9 +199,11 @@ public:
 	enum Ins {
 		Ent, PushAx, Add, Sub, Mul, Div, Li, Si, Imm, Adj, Lev, Call, LoadParam, Exit, Push, Jz, Jmp, Print, Equ,NotEqu,Alloc,Free
 	};
+	string OutString;
 private:
 	vector<int> text;
 	vector<int> stack;
+
 
 	//Register
 	int AX, BP, SP;
@@ -352,10 +341,13 @@ public:
 
 	void Run(int start) {
 		int pc = start;
+		char buff[10000]{0};
 		while (true) {
 			int opCode = text[pc++];
-			if (opCode == Ins::Exit)
-				exit(AX);
+			if (opCode == Ins::Exit){
+			    return ;
+			    //throw exception( ( string("exit code:") +std::to_string(this->AX)).data());
+			}
 			else if (opCode == Ins::Imm) {
 				this->AX = this->text[pc++];
 			}
@@ -433,19 +425,11 @@ public:
 					t = PopVal();
 					paramArrays[i] = t;
 				}
-				/*
-				for (int j = 0; j < paramCnt; j++) {
-					__asm {
-						push paramArrays[j];
-					}
-				}
-				*/
+				paramArrays[paramCnt++]=(int)buff;
 				__asm {
-					mov edx, paramCnt;
-
+					mov edx, paramCnt
 					mov ecx, 0;
 					lea ebx, paramArrays;
-
 				s:
 					mov eax, [ebx + ecx * 4];
 					push eax;
@@ -453,15 +437,14 @@ public:
 					cmp ecx, edx;
 					jnz s;
 				}
-
 				__asm {
-					call printf
+					call sprintf
 					mov eax, paramCnt
 					mov ebx, 4
 					mul ebx
 					add esp, eax
 				}
-				//cout << this->AX << endl;
+				OutString+=string(buff);
 			}
 			else if (opCode == Ins::Equ) {
 				int tk = stack[SP++];
@@ -471,8 +454,8 @@ public:
 				AX = (tk != AX);
 			}
 			else {
-				exit(0);
-			}
+                    throw exception((string("exit with:") + std::to_string(this->AX)).data());
+                }
 		}
 
 	};
@@ -609,38 +592,28 @@ namespace Gram {
             return 2;
         }
 		else if (p == "+") {
-			return 3;
-		}
-		else if (p == "-") {
-			return 4;
-		}
-		else if (p == "*") {
-			return 5;
-		}
-		else if (p == "/") {
-			return 6;
-		}
-		else if (p == "++") {
-			return 7;
-		}
-		else if (p == "*2") {
-			return 8;
-		}
-		else if (p == "&2") {
-			return 9;
-		}
-		else if (p == "(") {
-			return -100;
-		}
-		else if (p == ")") {
-			return -101;
-		}
-		else if (p == ";") {
-			return -999;
-		}
-		else if (p == "}") {
-			return -999;
-		}
+            return 3;
+        } else if (p == "-") {
+            return 4;
+        } else if (p == "*") {
+            return 5;
+        } else if (p == "/") {
+            return 6;
+        } else if (p == "++") {
+            return 7;
+        } else if (p == "*2") {
+            return 8;
+        } else if (p == "&2") {
+            return 9;
+        } else if (p == "(") {
+            return -100;
+        } else if (p == ")") {
+            return -101;
+        } else if (p == ";") {
+            return -999;
+        } else if (p == "}") {
+            return -999;
+        }
 		return -99999;
 	}
 
@@ -657,8 +630,7 @@ namespace Gram {
 					Lex::SkipToken(name);
 				}
 				if (global_var.find(name) != global_var.end()) {
-					cout << name << "has definite" << endl;
-					exit(0);
+                    throw exception((string("has definite:") + name).data());
 				}
 				global_var[name] = 0;
 				global_varType[name]=varType;
@@ -734,8 +706,7 @@ namespace Gram {
             Lex::SkipToken(curToken.second);
             Expression(GetPriority("*2"));
             if(resultType < VarType::IntPtr){
-                cout<<"can not detach reference";
-                exit(0);
+                throw exception((string("can not detach reference")).data());
             }
             resultType-=VarType::IntPtr;
             virtualMachine.Append(VirtualMachine::Li);
@@ -746,8 +717,7 @@ namespace Gram {
 			//Function Call
 			if (Lex::GetToken().first == Lex::LeftParen) {
 				if (func_addr.find(name) == func_addr.end()) {
-					cout << "could not find function:" << name << endl;
-					exit(0);
+                    throw exception((string("could not find function:") + name).data());
 				}
 				int paramCnt = 0;
 				Lex::Match(Lex::LeftParen);
@@ -785,8 +755,7 @@ namespace Gram {
 					virtualMachine.Append(VirtualMachine::Li);
 				}
 				else {
-					cout << "can not find " << name << endl;
-					exit(0);
+                    throw exception((string("can not find:") + name).data());
 				}
 			}
 		}
@@ -799,8 +768,7 @@ namespace Gram {
 				Expression(GetPriority("*"));
 				int rightType = resultType;
 				if(leftType>=VarType::IntPtr && rightType>=VarType::IntPtr){
-				    cout<<"ptr can not add with ptr";
-				    exit(0);
+                    throw exception((string("ptr can not add with ptr")).data());
 				}
 				resultType = max(leftType,rightType);
 				virtualMachine.Append(VirtualMachine::Ins::Add);
@@ -812,8 +780,7 @@ namespace Gram {
 				Expression(GetPriority("*"));
                 int rightType = resultType;
                 if(leftType>=VarType::IntPtr && rightType>=VarType::IntPtr){
-                    cout<<"ptr can not sub with ptr";
-                    exit(0);
+                    throw exception((string("ptr can not sub with ptr")).data());
                 }
                 resultType = max(leftType,rightType);
 				virtualMachine.Append(VirtualMachine::Ins::Sub);
@@ -825,8 +792,7 @@ namespace Gram {
 				Expression(GetPriority("++"));
                 int rightType = resultType;
                 if(leftType>=VarType::IntPtr && rightType>=VarType::IntPtr){
-                    cout<<"ptr can not mul with ptr";
-                    exit(0);
+                    throw exception((string("ptr can not mul with ptr")).data());
                 }
                 resultType = max(leftType,rightType);
 				virtualMachine.Append(VirtualMachine::Ins::Mul);
@@ -858,14 +824,12 @@ namespace Gram {
                 virtualMachine.Append(VirtualMachine::Ins::NotEqu);
 			}
 			else{
-			    cout<<"not support operator "<<curToken.second;
-			    exit(0);
+                throw exception((string("not support operator:") + curToken.second).data());
 			}
 			curToken = Lex::GetToken();
 		}
 
 	}
-
 
 	void Statement() {
 		if (Lex::GetToken().first == Lex::Semi) {
@@ -1028,8 +992,7 @@ namespace Gram {
 					Lex::SkipToken(name);
 				}
 				if (local_var.find(name) != local_var.end()) {
-					cout << name << "has definite" << endl;
-					exit(0);
+                    throw exception((string("has definite")).data());
 				}
 				local_var[name] = cnt++;
 				local_varType[name] = varType;
@@ -1081,39 +1044,66 @@ namespace Gram {
 	}
 
 	void Program() {
-		if (Lex::GetToken().first == Lex::Int) {
-			GlobalVarDef();
-		}
-		if (Lex::GetToken().first == Lex::Func) {
-			GlobalFuncDef();
-		}
-	}
+	    global_varType.clear();
+	    global_var.clear();
+	    func_addr.clear();
+	    repair_func.clear();
+	    repair_var.clear();
+	    Lex::cur=0;
+        if (Lex::GetToken().first == Lex::Int) {
+            GlobalVarDef();
+        } else if (Lex::GetToken().first == Lex::Func) {
+            GlobalFuncDef();
+        } else {
+            throw exception("can not function def");
+        }
+    }
 
 	void ReLocation() {
-		//修复全局变量地址定位
-		map<string, int> glo;
-		for (auto& s : repair_var) {
-			if (glo.find(s.first) == glo.end()) {
-				glo[s.first] = (int) new int[1];
-			}
-			virtualMachine.AtText(s.second, glo[s.first]);
-		}
+        //修复全局变量地址定位
+        map<string, int> glo;
+        for (auto &s : repair_var) {
+            if (glo.find(s.first) == glo.end()) {
+                glo[s.first] = (int) new int[1];
+            }
+            virtualMachine.AtText(s.second, glo[s.first]);
+        }
 
-		//修复函数地址定位
-		for (auto& s : repair_func) {
-			if (func_addr.find(s.first) == func_addr.end()) {
-				cout << "can not find function:" << s.second;
-				exit(0);
-			}
-			virtualMachine.AtText(s.second, func_addr[s.first]);
-		}
+        //修复函数地址定位
+        for (auto &s : repair_func) {
+            if (func_addr.find(s.first) == func_addr.end()) {
+                throw exception((string("can not find function:") + s.first).data());
+            }
+            virtualMachine.AtText(s.second, func_addr[s.first]);
+        }
 
-	}
+    }
 }
 
-int main() {
-	Gram::Program();
-	Gram::ReLocation();
-	virtualMachine.StartFunction(Gram::func_addr["main"]);
-	return 0;
+string Eval(string code) {
+    Lex::srcCode = code;
+    string retMsg;
+    try {
+        Gram::Program();
+        Gram::ReLocation();
+        virtualMachine.StartFunction(Gram::func_addr["main"]);
+       retMsg=virtualMachine.OutString;
+    } catch (exception e) {
+        retMsg = e.what();
+    } catch (...) {
+        retMsg = "UnKnow Exception";
+    }
+    return retMsg;
 }
+
+    int main() {
+        string testCode = "func int  main()"
+                          "{"
+                          "int cnt;"
+                          "cnt = 0;"
+                          "while(cnt!=101)"
+                          "{ print(\"%d\",cnt);cnt = cnt+1;print(\"  \n \"); }"
+                          "}";
+//        cout<<Eval(testCode);
+        return 0;
+    }
