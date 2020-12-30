@@ -10,14 +10,13 @@ using namespace std;
 namespace Lex {
 	int cur = 0;
 	const string srcCode =
-            "func int  main(int a)"
+            "func int  main()"
             "{"
-            "int abc;"
-            "abc=56;"
-            "if(abc==12)"
-            "{print(\"%d\",12);}"
-            "else if(abc==55+1)"
-            "{print(\"%d\",56);}"
+            "int *abc;"
+            "int cc;"
+            "abc = &cc;"
+            "*abc=123;"
+            "*abc;"
             "}";
 	enum TokenSign {
 		Add,
@@ -25,6 +24,8 @@ namespace Lex {
 		Div,
 		Mul,
 		And,
+		LeftParen,
+		RightParen,
 		LeftBra,
 		RightBra,
 		FEof,
@@ -127,11 +128,17 @@ namespace Lex {
 			return make_pair(ID, srcCode.substr(cur, k - cur));
 		}
 		else if (ch == '(') {
-			return make_pair(TokenSign::LeftBra, "(");
+			return make_pair(TokenSign::LeftParen, "(");
 		}
 		else if (ch == ')') {
-			return make_pair(TokenSign::RightBra, ")");
+			return make_pair(TokenSign::RightParen, ")");
 		}
+		else if(ch=='['){
+		    return make_pair(TokenSign::LeftBra,"[");
+		}
+        else if(ch==']'){
+            return make_pair(TokenSign::RightBra,"]");
+        }
 		else if (ch == '+') {
 			if (srcCode[cur + 1] == '+') {
 				return make_pair(TokenSign::Inc, "++");
@@ -428,8 +435,7 @@ public:
 					mul ebx
 					add esp, eax
 				}
-
-				cout << this->AX << endl;
+				//cout << this->AX << endl;
 			}
 			else if (opCode == Ins::Equ) {
 				int tk = stack[SP++];
@@ -522,20 +528,36 @@ public:
 VirtualMachine virtualMachine;
 
 namespace Gram {
-
+    enum VarType{
+        Int,
+        IntPtr=10
+    };
 	vector<pair<string, int>> repair_var, repair_func;
 	map<string, int> func_addr;
 	map<string, int> global_var;
 	map<string, int> local_var;
 	map<string, int> local_param;
+	map<string,int> local_paramVarType;
+	map<string,int> local_varType;
+	map<string,int> global_varType;
 	vector<int> breakPos, returnPos;
 	vector<char*> strPtr;
 
+	int resultType=0;
 	int String2Int(string s) {
 		int ret;
 		stringstream ss(s);
 		ss >> ret;
 		return ret;
+	}
+
+	int parseMulSign(){
+	    int cnt=0;
+	    if(Lex::GetToken().first == Lex::Mul){
+	        cnt++;
+	        Lex::Match(Lex::Mul);
+	    }
+	    return cnt;
 	}
 
 	char* AllocStr(string s) {
@@ -593,7 +615,11 @@ namespace Gram {
 
 	void GlobalVarDef() {
 		if (Lex::GetToken().first == Lex::Int) {
+		    int varType=VarType::Int;
 			Lex::Match(Lex::Int);
+			//Praise *****
+			int ptrCNt = parseMulSign();
+            varType+=(VarType::IntPtr)*ptrCNt;
 			while (true) {
 				string name = Lex::GetToken().second;
 				if (Lex::GetToken().first == Lex::ID) {
@@ -604,6 +630,7 @@ namespace Gram {
 					exit(0);
 				}
 				global_var[name] = 0;
+				global_varType[name]=varType;
 				if (Lex::GetToken().first == Lex::Comma) {
 					Lex::Match(Lex::Comma);
 				}
@@ -617,12 +644,17 @@ namespace Gram {
 	}
 
 	void ParamDecl() {
+        int cnt = 0;
 		while (true) {
-			int cnt = 0;
 			if (Lex::GetToken().first == Lex::Int) {
-				Lex::Match(Lex::Int);
+                Lex::Match(Lex::Int);
+                int varType=VarType::Int;
+                //Praise *****
+                int ptrCNt = parseMulSign();
+                varType+=(VarType::IntPtr)*ptrCNt;
 				string name = Lex::GetToken().second;
 				local_param[name] = cnt++;
+				local_paramVarType[name]=varType;
 				Lex::SkipToken(name);
 			}
 			if (Lex::GetToken().first == Lex::Comma) {
@@ -633,43 +665,47 @@ namespace Gram {
 			}
 		}
 	}
-
-	void
-		Expression(int priority) {
+	void Expression(int priority) {
 		auto curToken = Lex::GetToken();
 		if (curToken.first == Lex::Num) {
 			virtualMachine.LoadIntInAx(String2Int(curToken.second));
 			Lex::SkipToken(curToken.second);
+            resultType = VarType::Int;
 		}
 		else if (curToken.first == Lex::Str) {
 			string s = curToken.second;
 			char* ptr = AllocStr(s.substr(1, s.size() - 2));
 			virtualMachine.LoadIntInAx((int)ptr);
 			Lex::SkipToken(curToken.second);
+            resultType=VarType::IntPtr;
 		}else if(curToken.first == Lex::And){
             Lex::SkipToken(curToken.second);
             Expression(GetPriority("*2"));
+            resultType+=VarType::IntPtr;
 		    if(virtualMachine.IsCurRightValue()){
 		        virtualMachine.PopTopOp();
 		    }
 		}else if(curToken.first == Lex::Mul){
             Lex::SkipToken(curToken.second);
             Expression(GetPriority("*2"));
-            if(!virtualMachine.IsCurRightValue()){
-                virtualMachine.Append(VirtualMachine::Li);
+            if(resultType < VarType::IntPtr){
+                cout<<"can not detach reference";
+                exit(0);
             }
+            resultType-=VarType::IntPtr;
+            virtualMachine.Append(VirtualMachine::Li);
 		}
 		else if (curToken.first == Lex::ID) {
 			string name = curToken.second;
 			Lex::SkipToken(name);
 			//Function Call
-			if (Lex::GetToken().first == Lex::LeftBra) {
+			if (Lex::GetToken().first == Lex::LeftParen) {
 				if (func_addr.find(name) == func_addr.end()) {
 					cout << "could not find function:" << name << endl;
 					exit(0);
 				}
 				int paramCnt = 0;
-				Lex::Match(Lex::LeftBra);
+				Lex::Match(Lex::LeftParen);
 				while (true) {
 					Expression(GetPriority("="));
 					virtualMachine.Append(VirtualMachine::PushAx);
@@ -677,32 +713,34 @@ namespace Gram {
 						Lex::Match(Lex::Comma);
 					}
 					paramCnt++;
-					if (Lex::GetToken().first == Lex::RightBra) {
+					if (Lex::GetToken().first == Lex::RightParen) {
 						break;
 					}
 				}
 				virtualMachine.CallFunction(name, func_addr[name]);
 				virtualMachine.AdjStack(paramCnt);
-				Lex::Match(Lex::RightBra);
+				Lex::Match(Lex::RightParen);
 			}
 			else {
 				if (local_var.find(name) != local_var.end()) {
+				    resultType = local_varType[name];
 					virtualMachine.LoadLocalVarAddressInAx(local_var[name]);
 					virtualMachine.Append(VirtualMachine::Li);
 				}
 				else if (local_param.find(name) != local_param.end()) {
+				    resultType = local_param[name];
 					virtualMachine.LoadTheFormalParamAddressInAx(local_param[name], local_param.size());
 					virtualMachine.Append(VirtualMachine::Li);
 				}
 				else if (global_var.find(name) != global_var.end()) {
+				    resultType = global_varType[name];
 					virtualMachine.Append(VirtualMachine::Imm);
 					repair_var.emplace_back(name, virtualMachine.GetTextSize());
 					virtualMachine.Append(0);
 					virtualMachine.Append(VirtualMachine::Li);
-
 				}
 				else {
-					cout << "can not find:" << name << endl;
+					cout << "can not find " << name << endl;
 					exit(0);
 				}
 			}
@@ -712,36 +750,63 @@ namespace Gram {
 			if (curToken.first == Lex::Add) {
 				Lex::Match(Lex::Add);
 				virtualMachine.PushAxInStack();
+				int leftType = resultType;
 				Expression(GetPriority("*"));
+				int rightType = resultType;
+				if(leftType>=VarType::IntPtr && rightType>=VarType::IntPtr){
+				    cout<<"ptr can not add with ptr";
+				    exit(0);
+				}
+				resultType = max(leftType,rightType);
 				virtualMachine.Append(VirtualMachine::Ins::Add);
 			}
 			else if (curToken.first == Lex::Sub) {
 				Lex::Match(Lex::Sub);
 				virtualMachine.PushAxInStack();
+                int leftType = resultType;
 				Expression(GetPriority("*"));
+                int rightType = resultType;
+                if(leftType>=VarType::IntPtr && rightType>=VarType::IntPtr){
+                    cout<<"ptr can not sub with ptr";
+                    exit(0);
+                }
+                resultType = max(leftType,rightType);
 				virtualMachine.Append(VirtualMachine::Ins::Sub);
 			}
 			else if (curToken.first == Lex::Mul) {
 				Lex::Match(Lex::Mul);
 				virtualMachine.PushAxInStack();
+                int leftType = resultType;
 				Expression(GetPriority("++"));
+                int rightType = resultType;
+                if(leftType>=VarType::IntPtr && rightType>=VarType::IntPtr){
+                    cout<<"ptr can not mul with ptr";
+                    exit(0);
+                }
+                resultType = max(leftType,rightType);
 				virtualMachine.Append(VirtualMachine::Ins::Mul);
 			}
 			else if (curToken.first == Lex::Assign) {
 				Lex::Match(Lex::Assign);
+                int leftType = resultType;
 				if (!virtualMachine.IsCurRightValue()) {
 					cout << "can not assign left-value" << endl;
 				}
 				virtualMachine.PopTopOp();
 				virtualMachine.PushAxInStack();
 				Expression(GetPriority("="));
+				resultType=leftType;
 				virtualMachine.Append(VirtualMachine::Ins::Si);
 			}
 			else if (curToken.first == Lex::Equal) {
 				Lex::Match(Lex::Equal);
 				virtualMachine.Append(VirtualMachine::Ins::PushAx);
 				Expression(GetPriority("=="));
+				resultType = VarType::Int;
 				virtualMachine.Append(VirtualMachine::Ins::Equ);
+			}else{
+			    cout<<"not support operator "<<curToken.second;
+			    exit(0);
 			}
 			curToken = Lex::GetToken();
 		}
@@ -757,12 +822,12 @@ namespace Gram {
 		else if (Lex::GetToken().first == Lex::If) {
 			int ifTrueEndPos = 0, ifFalsePos = 0;
 			Lex::Match(Lex::If);
-			Lex::Match(Lex::LeftBra);
+			Lex::Match(Lex::LeftParen);
 			Expression(GetPriority("="));
 			virtualMachine.Append(VirtualMachine::Jz);
 			ifFalsePos = virtualMachine.GetTextSize();
 			virtualMachine.Append(0);
-			Lex::Match(Lex::RightBra);
+			Lex::Match(Lex::RightParen);
 			Lex::Match(Lex::LeftMid);
 			Statement();
 			virtualMachine.Append(VirtualMachine::Jmp);
@@ -782,13 +847,13 @@ namespace Gram {
 			        virtualMachine.AtText( elseIfFalse.top(),cur );
 			    }
                 Lex::Match(Lex::ElseIf);
-                Lex::Match(Lex::LeftBra);
+                Lex::Match(Lex::LeftParen);
                 Expression(GetPriority("="));
                 virtualMachine.Append(VirtualMachine::Jz);
                 int elseIfFalsePos = virtualMachine.GetTextSize();
                 virtualMachine.Append(0);
                 elseIfFalse.push(elseIfFalsePos);
-                Lex::Match(Lex::RightBra);
+                Lex::Match(Lex::RightParen);
                 Lex::Match(Lex::LeftMid);
                 Statement();
                 virtualMachine.Append(VirtualMachine::Jmp);
@@ -830,13 +895,13 @@ namespace Gram {
 			int conditionFalsePos = 0;
 			int whileStartPos = 0;
 			Lex::Match(Lex::While);
-			Lex::Match(Lex::LeftBra);
+			Lex::Match(Lex::LeftParen);
 			whileStartPos = virtualMachine.GetTextSize();
 			Expression(GetPriority("="));
 			virtualMachine.Append(VirtualMachine::Jz);
 			conditionFalsePos = virtualMachine.GetTextSize();
 			virtualMachine.Append(0);
-			Lex::Match(Lex::RightBra);
+			Lex::Match(Lex::RightParen);
 			Lex::Match(Lex::LeftMid);
 			Statement();
 			virtualMachine.Append(VirtualMachine::Jmp);
@@ -856,7 +921,7 @@ namespace Gram {
 			virtualMachine.Append(0);
 			Statement();
 		}
-		else if (Lex::GetToken().first == Lex::ID || Lex::GetToken().first == Lex::Num ||
+		else if ( Lex::GetToken().first==Lex::Mul|| Lex::GetToken().first == Lex::ID || Lex::GetToken().first == Lex::Num ||
 			Lex::GetToken().first == Lex::Str) {
 			Expression(GetPriority("="));
 			Lex::Match(Lex::Semi);
@@ -864,7 +929,7 @@ namespace Gram {
 		}
 		else if (Lex::GetToken().first == Lex::Print) {
 			Lex::Match(Lex::Print);
-			Lex::Match(Lex::LeftBra);
+			Lex::Match(Lex::LeftParen);
 			int cnt = 0;
 			while (true) {
 				Expression(GetPriority("="));
@@ -873,14 +938,14 @@ namespace Gram {
 					Lex::Match(Lex::Comma);
 				}
 				cnt++;
-				if (Lex::GetToken().first == Lex::RightBra) {
+				if (Lex::GetToken().first == Lex::RightParen) {
 					break;
 				}
 			}
 			virtualMachine.PushValueInStack(cnt);
 			virtualMachine.Append(VirtualMachine::Print);
 
-			Lex::Match(Lex::RightBra);
+			Lex::Match(Lex::RightParen);
 			Lex::Match(Lex::Semi);
 			Statement();
 		}
@@ -896,10 +961,14 @@ namespace Gram {
 		}
 	}
 
-	void LocalVarDef() {
+	void LocalVarDef(int fromVarCnt) {
+        int cnt = fromVarCnt;
 		if (Lex::GetToken().first == Lex::Int) {
 			Lex::Match(Lex::Int);
-			int cnt = 0;
+            int varType=VarType::Int;
+            //Praise *****
+            int ptrCNt = parseMulSign();
+            varType+=(VarType::IntPtr)*ptrCNt;
 			while (true) {
 				string name = Lex::GetToken().second;
 				if (Lex::GetToken().first == Lex::ID) {
@@ -910,6 +979,7 @@ namespace Gram {
 					exit(0);
 				}
 				local_var[name] = cnt++;
+				local_varType[name] = varType;
 				if (Lex::GetToken().first == Lex::Comma) {
 					Lex::Match(Lex::Comma);
 				}
@@ -918,7 +988,7 @@ namespace Gram {
 					break;
 				}
 			}
-			LocalVarDef();
+			LocalVarDef(cnt);
 		}
 	}
 
@@ -933,13 +1003,13 @@ namespace Gram {
 				func_addr[name] = virtualMachine.GetTextSize();
 
 				Lex::SkipToken(name);
-				Lex::Match(Lex::LeftBra);
+				Lex::Match(Lex::LeftParen);
 				ParamDecl();
-				Lex::Match(Lex::RightBra);
+				Lex::Match(Lex::RightParen);
 
 				Lex::Match(Lex::LeftMid);
 
-				LocalVarDef();
+				LocalVarDef(0);
 				virtualMachine.EnterFunction(local_var.size());
 
 				//statement
