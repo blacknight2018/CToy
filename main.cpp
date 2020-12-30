@@ -14,11 +14,10 @@ namespace Lex {
 	const string srcCode =
             "func int  main()"
             "{"
-            "int *abc;"
-            "int cc;"
-            "abc = Alloc(4);"
-            "*abc=123;"
-            "Free(abc);"
+            "int cnt;"
+            "cnt = 0;"
+            "while(cnt!=123)"
+            "{ print(\"%d\",cnt);cnt = cnt+1;print(\"  \n \"); }"
             "}";
 	enum TokenSign {
 		Add,
@@ -42,6 +41,7 @@ namespace Lex {
 		ID,
 		Int,
 		Equal,
+		NotEqual,
 		If,
 		Else,
 		ElseIf,
@@ -157,6 +157,10 @@ namespace Lex {
 		}
 		else if (ch == '*') {
 			return make_pair(TokenSign::Mul, "*");
+		}else if(ch=='!'){
+		    if(srcCode[cur+1] == '='){
+		        return make_pair(TokenSign::NotEqual,"!=");
+		    }
 		}
 		else if (ch == '/') {
 			return make_pair(TokenSign::Div, "/");
@@ -206,7 +210,7 @@ namespace Lex {
 class VirtualMachine {
 public:
 	enum Ins {
-		Ent, PushAx, Add, Sub, Mul, Div, Li, Si, Imm, Adj, Lev, Call, LoadParam, Exit, Push, Jz, Jmp, Print, Equ,Alloc,Free
+		Ent, PushAx, Add, Sub, Mul, Div, Li, Si, Imm, Adj, Lev, Call, LoadParam, Exit, Push, Jz, Jmp, Print, Equ,NotEqu,Alloc,Free
 	};
 private:
 	vector<int> text;
@@ -337,6 +341,8 @@ public:
 			}
 			else if (text[i] == Ins::Equ) {
 				cout << "Equal" << endl;
+			}else if(text[i]==Ins::NotEqu){
+			    cout<<"Not Equal"<<endl;
 			}
 			else {
 				cout << "UnKnow OpCode:" << text[i] << endl;
@@ -460,7 +466,9 @@ public:
 			else if (opCode == Ins::Equ) {
 				int tk = stack[SP++];
 				AX = (tk == AX);
-
+			}else if(opCode==Ins::NotEqu){
+			    int tk = stack[SP++];
+				AX = (tk != AX);
 			}
 			else {
 				exit(0);
@@ -597,26 +605,29 @@ namespace Gram {
 		else if (p == "==") {
 			return 1;
 		}
+        else if (p == "!="){
+            return 2;
+        }
 		else if (p == "+") {
-			return 2;
-		}
-		else if (p == "-") {
 			return 3;
 		}
-		else if (p == "*") {
+		else if (p == "-") {
 			return 4;
 		}
-		else if (p == "/") {
+		else if (p == "*") {
 			return 5;
 		}
-		else if (p == "++") {
+		else if (p == "/") {
 			return 6;
 		}
-		else if (p == "*2") {
+		else if (p == "++") {
 			return 7;
 		}
-		else if (p == "&2") {
+		else if (p == "*2") {
 			return 8;
+		}
+		else if (p == "&2") {
+			return 9;
 		}
 		else if (p == "(") {
 			return -100;
@@ -838,7 +849,15 @@ namespace Gram {
 				Expression(GetPriority("=="));
 				resultType = VarType::Int;
 				virtualMachine.Append(VirtualMachine::Ins::Equ);
-			}else{
+			}
+			else if(curToken.first == Lex::NotEqual){
+			    Lex::Match(Lex::NotEqual);
+                virtualMachine.Append(VirtualMachine::Ins::PushAx);
+                Expression(GetPriority("=="));
+                resultType = VarType::Int;
+                virtualMachine.Append(VirtualMachine::Ins::NotEqu);
+			}
+			else{
 			    cout<<"not support operator "<<curToken.second;
 			    exit(0);
 			}
