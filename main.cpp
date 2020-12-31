@@ -980,32 +980,32 @@ namespace Gram {
 
 	void LocalVarDef(int fromVarCnt) {
         int cnt = fromVarCnt;
-		if (Lex::GetToken().first == Lex::Int) {
-			Lex::Match(Lex::Int);
-            int varType=VarType::Int;
+        if (Lex::GetToken().first == Lex::Int) {
+            Lex::Match(Lex::Int);
+            int varType = VarType::Int;
             //Praise *****
             int ptrCNt = parseMulSign();
-            varType+=(VarType::IntPtr)*ptrCNt;
-			while (true) {
-				string name = Lex::GetToken().second;
-				if (Lex::GetToken().first == Lex::ID) {
-					Lex::SkipToken(name);
-				}
-				if (local_var.find(name) != local_var.end()) {
+            varType += (VarType::IntPtr) * ptrCNt;
+            while (true) {
+                string name = Lex::GetToken().second;
+                if (Lex::GetToken().first == Lex::ID) {
+                    Lex::SkipToken(name);
+                }
+                if (local_var.find(name) != local_var.end()) {
                     throw exception((string("has definite")).data());
-				}
-				local_var[name] = cnt++;
-				local_varType[name] = varType;
-				if (Lex::GetToken().first == Lex::Comma) {
-					Lex::Match(Lex::Comma);
-				}
-				if (Lex::GetToken().first == Lex::Semi) {
-					Lex::Match(Lex::Semi);
-					break;
-				}
-			}
-			LocalVarDef(cnt);
-		}
+                }
+                local_var[name] = cnt++;
+                local_varType[name] = varType;
+                if (Lex::GetToken().first == Lex::Comma) {
+                    Lex::Match(Lex::Comma);
+                }
+                if (Lex::GetToken().first == Lex::Semi) {
+                    Lex::Match(Lex::Semi);
+                    break;
+                }
+            }
+            LocalVarDef(cnt);
+        }
 	}
 
 	void GlobalFuncDef() {
@@ -1057,7 +1057,7 @@ namespace Gram {
         if (Lex::GetToken().first == Lex::Func) {
             GlobalFuncDef();
         } else {
-            throw exception("can not function def");
+            throw exception("can not found any function def");
         }
     }
 
@@ -1111,12 +1111,43 @@ int main() {
     string testCode = "func int  main()"
                       "{"
                       "int cnt;"
+                      "int cc;"
                       "cnt = 0;"
                       "while(cnt!=101)"
                       "{ print(\"%d\",cnt);cnt = cnt+1;print(\"  \n \"); }"
                       "}";
 
-    testCode="int a;func int main() \n { print(\"%d\",7788); }";
-    cout<<Eval(testCode);
+    testCode =
+            "int ddz;"
+            "int fuckck;"
+            "func int check(int n)\n"
+            "{\n"
+            "   int aa;\n"
+            "fuckck=0;"
+            "   while(fuckck!=n)\n"
+            "   {\n"
+            "        print(\"%d \",fuckck);\n"
+            "        fuckck=fuckck+1;"
+            "    }\n"
+            "}\n"
+            "func int main(){\n"
+            "   check(100);\n"
+            "}";
+
+    testCode = "            int ddz;\n"
+               "            int fuckck;\n"
+               "            func int check(int n)\n"
+               "            {\n"
+               "               int aa;\n"
+               "               fuckck=0;\n"
+               "               while(fuckck!=n)\n"
+               "               {\n"
+               "                    fuckck=fuckck+1;\n"
+               "                }\n"
+               "            }\n"
+               "            func int main(){\n"
+               "               check(100);\n"
+               "            }";
+    cout << Eval(testCode);
     return 0;
 }
