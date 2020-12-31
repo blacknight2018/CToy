@@ -215,6 +215,14 @@ public:
 		AX = 0;
 	}
 
+	void Clear(){
+	    text.clear();
+	    stack.clear();
+	    stack = vector<int>(3000, 0);
+		BP = SP = 3000;
+		AX = 0;
+	}
+
 	void Debug() {
 		this->text.push_back(Ins::Exit);
 
@@ -345,6 +353,7 @@ public:
 		while (true) {
 			int opCode = text[pc++];
 			if (opCode == Ins::Exit){
+			    			    OutString+=('\n'+string("exit with:") + std::to_string(this->AX));
 			    return ;
 			    //throw exception( ( string("exit code:") +std::to_string(this->AX)).data());
 			}
@@ -454,7 +463,8 @@ public:
 				AX = (tk != AX);
 			}
 			else {
-                    throw exception((string("exit with:") + std::to_string(this->AX)).data());
+                throw exception((string("unknow opcode") ).data());
+
                 }
 		}
 
@@ -1049,7 +1059,15 @@ namespace Gram {
 	    func_addr.clear();
 	    repair_func.clear();
 	    repair_var.clear();
+	    local_param.clear();
+	    local_varType.clear();
+	    local_var.clear();
+	    local_paramVarType.clear();
 	    virtualMachine.OutString.clear();
+	    breakPos.clear();
+	    returnPos.clear();
+        resultType = 0;
+
 	    Lex::cur=0;
         if (Lex::GetToken().first == Lex::Int) {
             GlobalVarDef();
@@ -1086,6 +1104,7 @@ string Eval(string code) {
     Lex::srcCode = code;
     string retMsg;
     try {
+        virtualMachine.Clear();
         Gram::Program();
         Gram::ReLocation();
         virtualMachine.StartFunction(Gram::func_addr["main"]);
@@ -1108,46 +1127,22 @@ extern "C"  __declspec(dllexport) char *EvalC(char *code) {
 }
 
 int main() {
-    string testCode = "func int  main()"
-                      "{"
-                      "int cnt;"
-                      "int cc;"
-                      "cnt = 0;"
-                      "while(cnt!=101)"
-                      "{ print(\"%d\",cnt);cnt = cnt+1;print(\"  \n \"); }"
-                      "}";
+    string testCode = "            int ddz;\n"
+                      "            int fuckck;\n"
+                      "            func int check(int n)\n"
+                      "            {\n"
+                      "               int aa;\n"
+                      "               fuckck=0;\n"
+                      "               while(fuckck!=n)\n"
+                      "               {\n"
+                      "                    print(\"%d\",fuckck);\n"
+                      "                    fuckck=fuckck+1;\n"
+                      "                }\n"
+                      "            }\n"
+                      "            func int main(){\n"
+                      "               check(10);\n"
+                      "            }";
 
-    testCode =
-            "int ddz;"
-            "int fuckck;"
-            "func int check(int n)\n"
-            "{\n"
-            "   int aa;\n"
-            "fuckck=0;"
-            "   while(fuckck!=n)\n"
-            "   {\n"
-            "        print(\"%d \",fuckck);\n"
-            "        fuckck=fuckck+1;"
-            "    }\n"
-            "}\n"
-            "func int main(){\n"
-            "   check(100);\n"
-            "}";
-
-    testCode = "            int ddz;\n"
-               "            int fuckck;\n"
-               "            func int check(int n)\n"
-               "            {\n"
-               "               int aa;\n"
-               "               fuckck=0;\n"
-               "               while(fuckck!=n)\n"
-               "               {\n"
-               "                    fuckck=fuckck+1;\n"
-               "                }\n"
-               "            }\n"
-               "            func int main(){\n"
-               "               check(100);\n"
-               "            }";
     cout << Eval(testCode);
     return 0;
 }
