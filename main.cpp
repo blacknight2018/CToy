@@ -4,7 +4,7 @@
 #include <vector>
 #include <sstream>
 #include <stack>
-
+#include <Windows.h>
 
 
 using namespace std;
@@ -53,8 +53,8 @@ namespace Lex {
         int k = cur;
         if (cur == srcCode.size())
             return make_pair(TokenSign::FEof, "");
-        if (ch == ' ') {
-            while (cur < srcCode.size() && srcCode[cur] == ' ') {
+        if (ch == ' ' || ch=='\n') {
+            while (cur < srcCode.size() && (srcCode[cur] == ' '||srcCode[cur] == '\n')) {
                 cur++;
             }
             if (cur < srcCode.size()) {
@@ -253,7 +253,7 @@ public:
 		text.push_back(start);
 		text.push_back(Ins::Exit);
 		cout << "Run Start in " << start << endl;
-		PrintASM();
+		//PrintASM();
 		Run(cur);
 	}
 
@@ -1049,10 +1049,12 @@ namespace Gram {
 	    func_addr.clear();
 	    repair_func.clear();
 	    repair_var.clear();
+	    virtualMachine.OutString.clear();
 	    Lex::cur=0;
         if (Lex::GetToken().first == Lex::Int) {
             GlobalVarDef();
-        } else if (Lex::GetToken().first == Lex::Func) {
+        }
+        if (Lex::GetToken().first == Lex::Func) {
             GlobalFuncDef();
         } else {
             throw exception("can not function def");
@@ -1087,7 +1089,7 @@ string Eval(string code) {
         Gram::Program();
         Gram::ReLocation();
         virtualMachine.StartFunction(Gram::func_addr["main"]);
-       retMsg=virtualMachine.OutString;
+        retMsg = virtualMachine.OutString;
     } catch (exception e) {
         retMsg = e.what();
     } catch (...) {
@@ -1096,14 +1098,25 @@ string Eval(string code) {
     return retMsg;
 }
 
-    int main() {
-        string testCode = "func int  main()"
-                          "{"
-                          "int cnt;"
-                          "cnt = 0;"
-                          "while(cnt!=101)"
-                          "{ print(\"%d\",cnt);cnt = cnt+1;print(\"  \n \"); }"
-                          "}";
-//        cout<<Eval(testCode);
-        return 0;
-    }
+extern "C"  __declspec(dllexport) char *EvalC(char *code) {
+    string ret = Eval(string(code));
+    char *buf = 0;
+    buf = (char*)VirtualAlloc(NULL,ret.length()+1,MEM_RESERVE | MEM_COMMIT,PAGE_READWRITE);
+    memset(buf,0,ret.length()+1);
+    strcpy(buf,ret.data());
+    return buf;
+}
+
+int main() {
+    string testCode = "func int  main()"
+                      "{"
+                      "int cnt;"
+                      "cnt = 0;"
+                      "while(cnt!=101)"
+                      "{ print(\"%d\",cnt);cnt = cnt+1;print(\"  \n \"); }"
+                      "}";
+
+    testCode="int a;func int main() \n { print(\"%d\",7788); }";
+    cout<<Eval(testCode);
+    return 0;
+}
