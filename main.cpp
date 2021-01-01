@@ -261,7 +261,7 @@ public:
 		text.push_back(start);
 		text.push_back(Ins::Exit);
 		cout << "Run Start in " << start << endl;
-		//PrintASM();
+		PrintASM();
 		Run(cur);
 	}
 
@@ -428,7 +428,7 @@ public:
 			else if (opCode == Ins::Print) {
 				int paramCnt = 0;
 				paramCnt = PopVal();
-				int paramArrays[100]{ 0 };
+				int paramArrays[1000]{ 0 };
 				for (int i = 0; i < paramCnt; i++) {
 					int t;
 					t = PopVal();
@@ -574,9 +574,10 @@ namespace Gram {
 
 	int parseMulSign(){
 	    int cnt=0;
-	    if(Lex::GetToken().first == Lex::Mul){
+	    while(Lex::GetToken().first == Lex::Mul){
 	        cnt++;
 	        Lex::Match(Lex::Mul);
+
 	    }
 	    return cnt;
 	}
@@ -678,26 +679,40 @@ namespace Gram {
 			}
 		}
 	}
-	void Expression(int priority) {
+	int Expression(int priority) {
+	    int ret = 0;
 		auto curToken = Lex::GetToken();
 		if (curToken.first == Lex::Num) {
 			virtualMachine.LoadIntInAx(String2Int(curToken.second));
 			Lex::SkipToken(curToken.second);
             resultType = VarType::Int;
+            ret=1;
 		}
 		else if(curToken.first == Lex::Alloc){
             Lex::SkipToken(curToken.second);
             Lex::Match(Lex::LeftParen);
-            Expression(GetPriority("="));
+            int tmp = Expression(GetPriority("="));
+            if(tmp == 0){
+                throw exception("alloc bytes empty");
+            }
             virtualMachine.Append(VirtualMachine::Ins::Alloc);
             Lex::Match(Lex::RightParen);
+            ret=1;
 		}
 		else if(curToken.first == Lex::Free){
             Lex::SkipToken(curToken.second);
             Lex::Match(Lex::LeftParen);
-            Expression(GetPriority("="));
+            int tmp = Expression(GetPriority("="));
+            if(tmp == 0){
+                throw exception("alloc bytes empty");
+            }
             virtualMachine.Append(VirtualMachine::Ins::Free);
             Lex::Match(Lex::RightParen);
+            ret=1;
+		}else if(curToken.first == Lex::LeftParen){
+            Lex::Match(Lex::LeftParen);
+		    ret=Expression(GetPriority("="));
+		    Lex::Match(Lex::RightParen);
 		}
 		else if (curToken.first == Lex::Str) {
 			string s = curToken.second;
@@ -705,13 +720,17 @@ namespace Gram {
 			virtualMachine.LoadIntInAx((int)ptr);
 			Lex::SkipToken(curToken.second);
             resultType=VarType::IntPtr;
+            ret=1;
 		}else if(curToken.first == Lex::And){
             Lex::SkipToken(curToken.second);
             Expression(GetPriority("*2"));
             resultType+=VarType::IntPtr;
 		    if(virtualMachine.IsCurRightValue()){
 		        virtualMachine.PopTopOp();
+		    }else{
+		        throw exception(" can not get the address of  left value ");
 		    }
+		    ret=1;
 		}else if(curToken.first == Lex::Mul){
             Lex::SkipToken(curToken.second);
             Expression(GetPriority("*2"));
@@ -720,6 +739,7 @@ namespace Gram {
             }
             resultType-=VarType::IntPtr;
             virtualMachine.Append(VirtualMachine::Li);
+            ret=1;
 		}
 		else if (curToken.first == Lex::ID) {
 			string name = curToken.second;
@@ -732,19 +752,19 @@ namespace Gram {
 				int paramCnt = 0;
 				Lex::Match(Lex::LeftParen);
 				while (true) {
-					Expression(GetPriority("="));
-					virtualMachine.Append(VirtualMachine::PushAx);
-					if (Lex::GetToken().first == Lex::Comma) {
-						Lex::Match(Lex::Comma);
-					}
-					paramCnt++;
-					if (Lex::GetToken().first == Lex::RightParen) {
-						break;
-					}
+					int tmp = Expression(GetPriority("="));
+                    if(tmp==0){
+                        Lex::Match(Lex::RightParen);
+                        break;
+                    }
+                    paramCnt++;
+                    virtualMachine.Append(VirtualMachine::PushAx);
+                    if (Lex::GetToken().first == Lex::Comma) {
+                        Lex::Match(Lex::Comma);
+                    }
 				}
 				virtualMachine.CallFunction(name, func_addr[name]);
 				virtualMachine.AdjStack(paramCnt);
-				Lex::Match(Lex::RightParen);
 			}
 			else {
 				if (local_var.find(name) != local_var.end()) {
@@ -753,7 +773,7 @@ namespace Gram {
 					virtualMachine.Append(VirtualMachine::Li);
 				}
 				else if (local_param.find(name) != local_param.end()) {
-				    resultType = local_param[name];
+				    resultType = local_paramVarType[name];
 					virtualMachine.LoadTheFormalParamAddressInAx(local_param[name], local_param.size());
 					virtualMachine.Append(VirtualMachine::Li);
 				}
@@ -768,14 +788,22 @@ namespace Gram {
                     throw exception((string("can not find:") + name).data());
 				}
 			}
+			ret=1;
 		}
+//		else {
+//		    throw exception(  (string("unknow operate symbol:") + curToken.second).data());
+//		}
 		curToken = Lex::GetToken();
 		while (GetPriority(curToken.second) >= priority) {
 			if (curToken.first == Lex::Add) {
 				Lex::Match(Lex::Add);
 				virtualMachine.PushAxInStack();
 				int leftType = resultType;
-				Expression(GetPriority("*"));
+				int tmp = Expression(GetPriority("*"));
+				if(tmp == 0){
+				    throw exception("neeed other operator");
+				}
+
 				int rightType = resultType;
 				if(leftType>=VarType::IntPtr && rightType>=VarType::IntPtr){
                     throw exception((string("ptr can not add with ptr")).data());
@@ -787,7 +815,10 @@ namespace Gram {
 				Lex::Match(Lex::Sub);
 				virtualMachine.PushAxInStack();
                 int leftType = resultType;
-				Expression(GetPriority("*"));
+				int tmp = Expression(GetPriority("*"));
+                if(tmp == 0){
+                    throw exception("neeed other operator");
+                }
                 int rightType = resultType;
                 if(leftType>=VarType::IntPtr && rightType>=VarType::IntPtr){
                     throw exception((string("ptr can not sub with ptr")).data());
@@ -799,7 +830,10 @@ namespace Gram {
 				Lex::Match(Lex::Mul);
 				virtualMachine.PushAxInStack();
                 int leftType = resultType;
-				Expression(GetPriority("++"));
+				int tmp = Expression(GetPriority("++"));
+                if(tmp == 0){
+                    throw exception("neeed other operator");
+                }
                 int rightType = resultType;
                 if(leftType>=VarType::IntPtr && rightType>=VarType::IntPtr){
                     throw exception((string("ptr can not mul with ptr")).data());
@@ -815,21 +849,30 @@ namespace Gram {
 				}
 				virtualMachine.PopTopOp();
 				virtualMachine.PushAxInStack();
-				Expression(GetPriority("="));
+				int tmp = Expression(GetPriority("="));
+                if(tmp == 0){
+                    throw exception("neeed other operator");
+                }
 				resultType=leftType;
 				virtualMachine.Append(VirtualMachine::Ins::Si);
 			}
 			else if (curToken.first == Lex::Equal) {
 				Lex::Match(Lex::Equal);
 				virtualMachine.Append(VirtualMachine::Ins::PushAx);
-				Expression(GetPriority("=="));
+				int tmp = Expression(GetPriority("=="));
+                if(tmp == 0){
+                    throw exception("neeed other operator");
+                }
 				resultType = VarType::Int;
 				virtualMachine.Append(VirtualMachine::Ins::Equ);
 			}
 			else if(curToken.first == Lex::NotEqual){
 			    Lex::Match(Lex::NotEqual);
                 virtualMachine.Append(VirtualMachine::Ins::PushAx);
-                Expression(GetPriority("=="));
+                int tmp = Expression(GetPriority("=="));
+                if(tmp == 0){
+                    throw exception("neeed other operator");
+                }
                 resultType = VarType::Int;
                 virtualMachine.Append(VirtualMachine::Ins::NotEqu);
 			}
@@ -838,7 +881,7 @@ namespace Gram {
 			}
 			curToken = Lex::GetToken();
 		}
-
+		return ret;
 	}
 
 	void Statement() {
@@ -958,27 +1001,33 @@ namespace Gram {
 			Lex::Match(Lex::Print);
 			Lex::Match(Lex::LeftParen);
 			int cnt = 0;
-			while (true) {
-				Expression(GetPriority("="));
-				virtualMachine.PushAxInStack();
-				if (Lex::GetToken().first == Lex::Comma) {
-					Lex::Match(Lex::Comma);
-				}
-				cnt++;
-				if (Lex::GetToken().first == Lex::RightParen) {
-					break;
-				}
-			}
-			virtualMachine.PushValueInStack(cnt);
-			virtualMachine.Append(VirtualMachine::Print);
 
-			Lex::Match(Lex::RightParen);
+			while (true) {
+                int tmp = Expression(GetPriority("="));
+                if(tmp==0){
+                    Lex::Match(Lex::RightParen);
+                    break;
+                }
+                cnt++;
+                virtualMachine.Append(VirtualMachine::PushAx);
+                if (Lex::GetToken().first == Lex::Comma) {
+                    Lex::Match(Lex::Comma);
+                }
+			}
+            if(cnt > 0) {
+                virtualMachine.PushValueInStack(cnt);
+                virtualMachine.Append(VirtualMachine::Print);
+            }
+
 			Lex::Match(Lex::Semi);
 			Statement();
 		}
 		else if (Lex::GetToken().first == Lex::Ret) {
 			Lex::Match(Lex::Ret);
-			Expression(GetPriority("="));
+			int tmp = Expression(GetPriority("="));
+			if(tmp == 0){
+                throw exception("neeed other operator");
+			}
 			Lex::Match(Lex::Semi);
 			int retPos = 0;
 			virtualMachine.Append(VirtualMachine::Jmp);
@@ -1025,6 +1074,9 @@ namespace Gram {
 				Lex::Match(Lex::Int);
 				string name = Lex::GetToken().second;
 
+				if(func_addr.find(name)!=func_addr.end()){
+				    throw exception((string("function has def:")+name).data());
+				}
 				//记录函数的地址
 				func_addr[name] = virtualMachine.GetTextSize();
 
@@ -1047,6 +1099,8 @@ namespace Gram {
 					virtualMachine.AtText(s, virtualMachine.GetTextSize());
 				}
 				virtualMachine.LeaveFunction();
+			}else{
+			    throw exception( string("can not praise type:"+Lex::GetToken().second).data() );
 			}
 			local_var.clear();
 			local_param.clear();
@@ -1127,21 +1181,15 @@ extern "C"  __declspec(dllexport) char *EvalC(char *code) {
 }
 
 int main() {
-    string testCode = "            int ddz;\n"
-                      "            int fuckck;\n"
-                      "            func int check(int n)\n"
-                      "            {\n"
-                      "               int aa;\n"
-                      "               fuckck=0;\n"
-                      "               while(fuckck!=n)\n"
-                      "               {\n"
-                      "                    print(\"%d\",fuckck);\n"
-                      "                    fuckck=fuckck+1;\n"
-                      "                }\n"
-                      "            }\n"
-                      "            func int main(){\n"
-                      "               check(10);\n"
-                      "            }";
+    string testCode = "func int fac(int n)\n"
+                      "{\n"
+                      "    if(n==1){  return n;}\n"
+                      "    return n * fac(n-1);\n"
+                      "}\n"
+                      "func int haha(){ return fac(6); }"
+                      "func int main(){\n"
+                      "   print(\"%d\",haha(1203,5656)+6666);\n"
+                      "}";
 
     cout << Eval(testCode);
     return 0;
