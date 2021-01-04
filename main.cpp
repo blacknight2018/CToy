@@ -18,6 +18,7 @@ namespace Lex {
         Div,
         Mul,
         And,
+        Mod,
         LeftParen,
         RightParen,
         LeftBra,
@@ -159,6 +160,9 @@ namespace Lex {
 		else if (ch == '&') {
 			return make_pair(TokenSign::And, "&");
 		}
+        else if (ch == '%') {
+            return make_pair(TokenSign::Mod, "%");
+        }
 		else if (ch == ',') {
 			return make_pair(TokenSign::Comma, ",");
 		}
@@ -197,7 +201,7 @@ namespace Lex {
 class VirtualMachine {
 public:
 	enum Ins {
-		Ent, PushAx, Add, Sub, Mul, Div, Li, Si, Imm, Adj, Lev, Call, LoadParam, Exit, Push, Jz, Jmp, Print, Equ,NotEqu,Alloc,Free
+		Ent, PushAx, Add, Sub, Mul, Div, Li, Si, Imm, Adj, Lev, Call, LoadParam, Exit, Push, Jz, Jmp, Print, Equ,NotEqu,Alloc,Free,Mod
 	};
 	string OutString;
 private:
@@ -340,6 +344,8 @@ public:
 				cout << "Equal" << endl;
 			}else if(text[i]==Ins::NotEqu){
 			    cout<<"Not Equal"<<endl;
+			}else if(text[i] == Ins::Div){
+			    cout<<"Div"<<endl;
 			}
 			else {
 				cout << "UnKnow OpCode:" << text[i] << endl;
@@ -371,6 +377,8 @@ public:
 			}
 			else if (opCode == Ins::Sub) {
 				this->AX = this->stack[SP++] - this->AX;
+			}else if (opCode == Ins::Mod) {
+				this->AX = this->stack[SP++] % this->AX;
 			}
 			else if (opCode == Ins::PushAx) {
 				this->PushVal(AX);
@@ -610,12 +618,15 @@ namespace Gram {
             return 5;
         } else if (p == "/") {
             return 6;
-        } else if (p == "++") {
-            return 7;
-        } else if (p == "*2") {
+        } else if(p == "%"){
+		    return 7;
+		}
+		else if (p == "++") {
             return 8;
-        } else if (p == "&2") {
+        } else if (p == "*2") {
             return 9;
+        } else if (p == "&2") {
+            return 10;
         } else if (p == "(") {
             return -100;
         } else if (p == ")") {
@@ -801,7 +812,7 @@ namespace Gram {
 				int leftType = resultType;
 				int tmp = Expression(GetPriority("*"));
 				if(tmp == 0){
-				    throw exception("neeed other operator");
+				    throw exception("need other operator");
 				}
 
 				int rightType = resultType;
@@ -817,7 +828,7 @@ namespace Gram {
                 int leftType = resultType;
 				int tmp = Expression(GetPriority("*"));
                 if(tmp == 0){
-                    throw exception("neeed other operator");
+                    throw exception("need other operator");
                 }
                 int rightType = resultType;
                 if(leftType>=VarType::IntPtr && rightType>=VarType::IntPtr){
@@ -832,7 +843,7 @@ namespace Gram {
                 int leftType = resultType;
 				int tmp = Expression(GetPriority("++"));
                 if(tmp == 0){
-                    throw exception("neeed other operator");
+                    throw exception("need other operator");
                 }
                 int rightType = resultType;
                 if(leftType>=VarType::IntPtr && rightType>=VarType::IntPtr){
@@ -840,7 +851,36 @@ namespace Gram {
                 }
                 resultType = max(leftType,rightType);
 				virtualMachine.Append(VirtualMachine::Ins::Mul);
-			}
+			}else if (curToken.first == Lex::Div) {
+                Lex::Match(Lex::Div);
+                virtualMachine.PushAxInStack();
+                int leftType = resultType;
+                int tmp = Expression(GetPriority("++"));
+                if(tmp == 0){
+                    throw exception("need other operator");
+                }
+                int rightType = resultType;
+                if(leftType>=VarType::IntPtr && rightType>=VarType::IntPtr){
+                    throw exception((string("ptr can not div with ptr")).data());
+                }
+                resultType = max(leftType,rightType);
+                virtualMachine.Append(VirtualMachine::Ins::Div);
+            }
+            else if (curToken.first == Lex::Mod) {
+                Lex::Match(Lex::Mod);
+                virtualMachine.PushAxInStack();
+                int leftType = resultType;
+                int tmp = Expression(GetPriority("++"));
+                if(tmp == 0){
+                    throw exception("need other operator");
+                }
+                int rightType = resultType;
+                if(leftType>=VarType::IntPtr && rightType>=VarType::IntPtr){
+                    throw exception((string("ptr can not Mod with ptr")).data());
+                }
+                resultType = max(leftType,rightType);
+                virtualMachine.Append(VirtualMachine::Ins::Mod);
+            }
 			else if (curToken.first == Lex::Assign) {
 				Lex::Match(Lex::Assign);
                 int leftType = resultType;
@@ -851,7 +891,7 @@ namespace Gram {
 				virtualMachine.PushAxInStack();
 				int tmp = Expression(GetPriority("="));
                 if(tmp == 0){
-                    throw exception("neeed other operator");
+                    throw exception("need other operator");
                 }
 				resultType=leftType;
 				virtualMachine.Append(VirtualMachine::Ins::Si);
@@ -861,7 +901,7 @@ namespace Gram {
 				virtualMachine.Append(VirtualMachine::Ins::PushAx);
 				int tmp = Expression(GetPriority("=="));
                 if(tmp == 0){
-                    throw exception("neeed other operator");
+                    throw exception("need other operator");
                 }
 				resultType = VarType::Int;
 				virtualMachine.Append(VirtualMachine::Ins::Equ);
@@ -871,7 +911,7 @@ namespace Gram {
                 virtualMachine.Append(VirtualMachine::Ins::PushAx);
                 int tmp = Expression(GetPriority("=="));
                 if(tmp == 0){
-                    throw exception("neeed other operator");
+                    throw exception("need other operator");
                 }
                 resultType = VarType::Int;
                 virtualMachine.Append(VirtualMachine::Ins::NotEqu);
@@ -1026,7 +1066,7 @@ namespace Gram {
 			Lex::Match(Lex::Ret);
 			int tmp = Expression(GetPriority("="));
 			if(tmp == 0){
-                throw exception("neeed other operator");
+                throw exception("need other operator");
 			}
 			Lex::Match(Lex::Semi);
 			int retPos = 0;
@@ -1188,7 +1228,7 @@ int main() {
                       "}\n"
                       "func int haha(){ return fac(6); }"
                       "func int main(){\n"
-                      "   print(\"%d\",haha(1203,5656)+6666);\n"
+                      "   print(\" %d \" , 8 % 3);\n"
                       "}";
 
     cout << Eval(testCode);
